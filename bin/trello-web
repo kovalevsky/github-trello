@@ -5,16 +5,45 @@ require "vegas"
 require "yaml"
 require "github-trello/server"
 
-Vegas::Runner.new(GithubTrello::Server, "trello-web", {
-  :launch_path => lambda {|vegas|
-    path = File.join(vegas.app_dir, "trello.yml")
-    if File.exists?(path)
-      GithubTrello::Server.config = YAML::load(File.read(path))
-    else
-      puts "[WARNING] No configuration found at #{path}."
-      puts "We've generated an example one for you, but you need to configure it still."
+def start
+  Vegas::Runner.new(GithubTrello::Server, "trello-web", {
+    :launch_path => lambda {|vegas|
+      path = File.join(vegas.app_dir, "trello.yml")
+      if File.exists?(path)
+        GithubTrello::Server.config = YAML::load(File.read(path))
+      else
+        puts "[WARNING] No configuration found at #{path}."
+        puts "We've generated an example one for you, but you need to configure it still."
+        generate_config
+        exit
+      end
 
-      config = <<YAML
+      nil
+    }
+  })
+end
+
+def stop
+  p "Stoping trello-web"
+  pid = `[ -f ~/.vegas/trello_web/trello_web.pid ] && cat ~/.vegas/trello_web/trello_web.pid`
+  p "[WARNING]: trello-web is not running" if pid.empty?
+  `kill -1 #{pid}`
+end
+
+def restart
+  stop
+  start
+end
+
+known_commands = %w(start stop restart)
+unless ARGV.length == 1 && known_commands.include?(ARGV.first)
+  p "Usage: ./bin/trello-web [#{known_commands.join('|')}]"
+  exit
+end
+self.send(ARGV.first)
+
+def generate_config
+  config = <<YAML
 oauth_token: [token]
 api_key: [key]
 board_ids:
@@ -37,13 +66,7 @@ on_deploy:
   archive: true
 YAML
 
-      File.open(path, "w+") do |f|
-        f.write(config)
-      end
-
-      exit
-    end
-
-    nil
-  }
-})
+  File.open(path, "w+") do |f|
+    f.write(config)
+  end
+end

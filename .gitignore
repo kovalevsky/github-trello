@@ -1,1 +1,5 @@
 Gemfile.lock
+.bundle
+vendor/bundle
+*.sublime-project
+*.sublime-workflow
